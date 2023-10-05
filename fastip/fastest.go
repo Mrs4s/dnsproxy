@@ -94,6 +94,24 @@ func (f *FastestAddr) ExchangeFastest(req *dns.Msg, ups []upstream.Upstream) (
 	return replies[0].Resp, replies[0].Upstream, nil
 }
 
+func (f *FastestAddr) ExchangeHTTPS(req *dns.Msg, ups []upstream.Upstream) (
+	resp *dns.Msg,
+	u upstream.Upstream,
+	err error,
+) {
+	replies, err := upstream.ExchangeAll(ups, req)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, r := range replies {
+		if hasECHConfig(r.Resp) {
+			return r.Resp, r.Upstream, nil
+		}
+	}
+
+	return replies[0].Resp, replies[0].Upstream, nil
+}
+
 // prepareReply converts replies into the DNS answer message according to res.
 // The returned upstreams is the one which replied with the fastest address.
 func (f *FastestAddr) prepareReply(
@@ -163,4 +181,19 @@ func ipFromRR(rr dns.RR) (ip netip.Addr) {
 	}
 
 	return ip
+}
+
+func hasECHConfig(m *dns.Msg) bool {
+	for _, rr := range m.Answer {
+		record, ok := rr.(*dns.HTTPS)
+		if !ok {
+			continue
+		}
+		for _, svcb := range record.SVCB.Value {
+			if _, ok = svcb.(*dns.SVCBECHConfig); ok {
+				return true
+			}
+		}
+	}
+	return false
 }

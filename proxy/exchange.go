@@ -13,6 +13,12 @@ import (
 // exchange -- sends DNS query to the upstream DNS server and returns the response
 func (p *Proxy) exchange(req *dns.Msg, upstreams []upstream.Upstream) (reply *dns.Msg, u upstream.Upstream, err error) {
 	qtype := req.Question[0].Qtype
+
+	if qtype == dns.TypeHTTPS {
+		reply, u, err = p.fastestAddr.ExchangeHTTPS(req, upstreams)
+		return
+	}
+
 	if p.UpstreamMode == UModeFastestAddr && (qtype == dns.TypeA || qtype == dns.TypeAAAA) {
 		reply, u, err = p.fastestAddr.ExchangeFastest(req, upstreams)
 		return
